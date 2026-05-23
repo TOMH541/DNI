@@ -4,12 +4,12 @@ const {
 } = require('discord.js');
 
 const allowedRoles = [
-    'ROLE_ID_HERE'
+    '1507820452641509496'
 ];
 
-const strikeRole = 'STRIKE_ROLE_ID';
-const blacklistRole = 'BLACKLIST_ROLE_ID';
-const warningRole = 'WARNING_ROLE_ID';
+const strikeRole = '1507820599265853451';
+const blacklistRole = '1507820790349824161';
+const warningRole = '1507820732829274214';
 
 module.exports = {
 
@@ -33,10 +33,10 @@ module.exports = {
             .setRequired(true)
 
             .addChoices(
-                { name: 'Strike', value: 'strike' },
+                { name: 'Commander Strike', value: 'strike' },
                 { name: 'Blacklist', value: 'blacklist' },
                 { name: 'Removal', value: 'removal' },
-                { name: 'Warning', value: 'warning' }
+                { name: 'Commander Warning', value: 'warning' }
             )
         )
 
@@ -91,11 +91,13 @@ module.exports = {
 
         if (punishment === 'warning') {
 
+            color = 'Yellow';
+
             title =
-            '⚠️ You Have Received a Warning';
+            '⚠️ You Have Received a Commander Warning';
 
             description =
-            'You have been issued a warning.';
+            'You have been issued a commander warning.';
 
             await member.roles.add(warningRole);
         }
@@ -105,10 +107,10 @@ module.exports = {
             color = 'Orange';
 
             title =
-            '⚠️ You Have Received a Staff Strike';
+            '⚠️ You Have Received a Commander Strike';
 
             description =
-            'You have been issued a staff strike.';
+            'You have been issued a commander strike.';
 
             await member.roles.add(strikeRole);
         }
@@ -121,7 +123,7 @@ module.exports = {
             '⛔ You Have Been Blacklisted';
 
             description =
-            'You have been blacklisted from staff.';
+            'You have been blacklisted from command.';
             
             await member.roles.add(blacklistRole);
         }
@@ -131,10 +133,10 @@ module.exports = {
             color = 'Red';
 
             title =
-            '❌ You Have Been Removed from Staff';
+            '❌ You Have Been Removed from Command';
 
             description =
-            'You have been removed from the staff team.';
+            'You have been removed from command.';
         }
 
         const embed = new EmbedBuilder()
@@ -163,6 +165,12 @@ module.exports = {
                     name: '📅 Expires',
                     value: `In ${duration}`,
                     inline: true
+                },
+
+                {
+                    name: '👮 Punished By',
+                    value: `${interaction.user}`,
+                    inline: false
                 }
             )
 
