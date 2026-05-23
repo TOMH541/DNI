@@ -1,0 +1,13 @@
+{
+  "name": "ciu-utilities",
+  "version": "1.0.0",
+  "description": "CIU Utilities Discord Bot",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.15.3",
+    "dotenv": "^16.4.5"
+  }
+}
