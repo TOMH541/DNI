@@ -1,0 +1,148 @@
+const {
+    SlashCommandBuilder,
+    EmbedBuilder
+} = require('discord.js');
+
+const allowedRoles = [
+    'ALLOWED_ROLE_ID'
+];
+
+const loaRole = 'LOA_ROLE_ID';
+
+module.exports = {
+
+    data: new SlashCommandBuilder()
+
+        .setName('requestloa')
+
+        .setDescription('Give a user LOA')
+
+        .addUserOption(option =>
+            option
+            .setName('user')
+            .setDescription('User')
+            .setRequired(true)
+        )
+
+        .addStringOption(option =>
+            option
+            .setName('reason')
+            .setDescription('Reason for LOA')
+            .setRequired(true)
+        )
+
+        .addStringOption(option =>
+            option
+            .setName('length')
+            .setDescription('Length Example: 7d')
+            .setRequired(true)
+        )
+
+        .addStringOption(option =>
+            option
+            .setName('notes')
+            .setDescription('Extra notes')
+            .setRequired(false)
+        ),
+
+    async execute(interaction) {
+
+        const hasRole =
+        interaction.member.roles.cache.some(r =>
+            allowedRoles.includes(r.id)
+        );
+
+        if (!hasRole) {
+
+            return interaction.reply({
+
+                content:
+                'You cannot use this command.',
+
+                ephemeral: true
+            });
+        }
+
+        const user =
+        interaction.options.getUser('user');
+
+        const reason =
+        interaction.options.getString('reason');
+
+        const length =
+        interaction.options.getString('length');
+
+        const notes =
+        interaction.options.getString('notes')
+        || 'No notes provided.';
+
+        const member =
+        await interaction.guild.members.fetch(user.id);
+
+        await member.roles.add(loaRole);
+
+        const embed = new EmbedBuilder()
+
+            .setColor('Blue')
+
+            .setTitle('🛫 Leave of Absence Approved')
+
+            .setDescription(
+                'Your LOA request has been approved.'
+            )
+
+            .addFields(
+
+                {
+                    name: '📝 Reason',
+                    value: reason,
+                    inline: false
+                },
+
+                {
+                    name: '📆 Length',
+                    value: length,
+                    inline: true
+                },
+
+                {
+                    name: '📋 Notes',
+                    value: notes,
+                    inline: false
+                },
+
+                {
+                    name: '👮 Approved By',
+                    value: `${interaction.user}`,
+                    inline: false
+                }
+            )
+
+            .setTimestamp();
+
+        try {
+
+            await user.send({
+                embeds: [embed]
+            });
+
+        } catch {
+
+            console.log('Could not DM user.');
+        }
+
+        await interaction.reply({
+
+            embeds: [
+
+                new EmbedBuilder()
+
+                .setColor('Green')
+
+                .setDescription(
+                    `Successfully approved LOA for ${user}.`
+                )
+            ]
+        });
+    }
+};
