@@ -4,10 +4,10 @@ const {
 } = require('discord.js');
 
 const allowedRoles = [
-    'ALLOWED_ROLE_ID'
+    '1507820452641509496'
 ];
 
-const loaRole = 'LOA_ROLE_ID';
+const loaRole = '1507157071655866439';
 
 module.exports = {
 
