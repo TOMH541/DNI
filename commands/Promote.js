@@ -65,7 +65,7 @@ module.exports = {
             .setTitle('🎉 Promotion')
 
             .setDescription(
-                `You have been promoted to ${role} by ${interaction.user}!`
+                `You have been promoted by ${interaction.user}!`
             )
 
             .setTimestamp();
