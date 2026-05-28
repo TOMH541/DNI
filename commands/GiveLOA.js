@@ -7,7 +7,7 @@ const allowedRoles = [
     'ALLOWED_ROLE_ID'
 ];
 
-const loaRole = 'LOA_ROLE_ID';
+const loaRole = '1507820452641509496';
 
 module.exports = {
 
