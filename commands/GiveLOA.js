@@ -4,10 +4,10 @@ const {
 } = require('discord.js');
 
 const allowedRoles = [
-    '1507820452641509496'
+    'ALLOWED_ROLE_ID'
 ];
 
-const loaRole = '1507157071655866439';
+const loaRole = 'LOA_ROLE_ID';
 
 module.exports = {
 
@@ -33,6 +33,9 @@ module.exports = {
 
     async execute(interaction) {
 
+        // Prevents Unknown Interaction Error
+        await interaction.deferReply();
+
         const hasRole =
         interaction.member.roles.cache.some(r =>
             allowedRoles.includes(r.id)
@@ -40,12 +43,10 @@ module.exports = {
 
         if (!hasRole) {
 
-            return interaction.reply({
+            return interaction.editReply({
 
                 content:
-                'You cannot use this command.',
-
-                ephemeral: true
+                'You cannot use this command.'
             });
         }
 
@@ -58,8 +59,10 @@ module.exports = {
         const member =
         await interaction.guild.members.fetch(user.id);
 
+        // Give LOA Role
         await member.roles.add(loaRole);
 
+        // DM Embed
         const dmEmbed = new EmbedBuilder()
 
             .setColor('Blue')
@@ -67,7 +70,7 @@ module.exports = {
             .setTitle('🛫 Leave of Absence Granted')
 
             .setDescription(
-                'You have been placed on Leave of Absence.'
+                'You have officially been placed on LOA.'
             )
 
             .addFields(
@@ -81,12 +84,13 @@ module.exports = {
                 {
                     name: '👮 Granted By',
                     value: `${interaction.user}`,
-                    inline: false
+                    inline: true
                 }
             )
 
             .setTimestamp();
 
+        // Attempt DM
         try {
 
             await user.send({
@@ -95,18 +99,35 @@ module.exports = {
 
         } catch {
 
-            console.log('Could not DM user.');
+            console.log(
+                `Could not DM ${user.tag}`
+            );
         }
 
+        // Success Embed
         const successEmbed = new EmbedBuilder()
 
             .setColor('Green')
 
-            .setDescription(
-                `Successfully gave LOA to ${user} for **${duration}**.`
-            );
+            .setTitle('✅ LOA Granted')
 
-        await interaction.reply({
+            .setDescription(
+                `${user} has been placed on LOA for **${duration}**.`
+            )
+
+            .addFields(
+
+                {
+                    name: '👮 Granted By',
+                    value: `${interaction.user}`,
+                    inline: true
+                }
+            )
+
+            .setTimestamp();
+
+        // Final Reply
+        await interaction.editReply({
 
             embeds: [successEmbed]
         });
