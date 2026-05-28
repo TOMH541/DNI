@@ -133,6 +133,9 @@ module.exports = {
 
         collector.on('collect', async i => {
 
+            // FIXES INTERACTION FAILED
+            await i.deferUpdate();
+
             const hasRole =
             i.member.roles.cache.some(r =>
                 allowedRoles.includes(r.id)
@@ -140,7 +143,7 @@ module.exports = {
 
             if (!hasRole) {
 
-                return i.reply({
+                return i.followUp({
 
                     content:
                     'You cannot approve LOAs.',
@@ -240,7 +243,7 @@ module.exports = {
 
                 } catch {}
 
-                await i.update({
+                await i.editReply({
 
                     embeds: [approvedEmbed],
 
@@ -331,7 +334,7 @@ module.exports = {
 
                 } catch {}
 
-                await i.update({
+                await i.editReply({
 
                     embeds: [deniedEmbed],
 
