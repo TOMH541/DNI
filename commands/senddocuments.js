@@ -17,7 +17,7 @@ module.exports = {
 
             .setColor('Blue')
 
-            .setTitle('📚 CIU Documents Directory')
+            .setTitle('📚 CIU Directory')
 
             .setDescription(
 `**Link Directory:**  
