@@ -4,7 +4,7 @@ const {
 } = require('discord.js');
 
 const allowedRoles = [
-    '1515450853719277598'
+    '1515450853719277598' // People who can punish staff
 ];
 
 const strikeRole = '1515452574810116306';
@@ -15,75 +15,86 @@ module.exports = {
 
     data: new SlashCommandBuilder()
 
-        .setName('commandpunish')
+        .setName('punishstaff')
 
-        .setDescription('Punish a user')
+        .setDescription('Punish a staff member')
 
         .addUserOption(option =>
             option
-            .setName('user')
-            .setDescription('User')
-            .setRequired(true)
+                .setName('user')
+                .setDescription('User to punish')
+                .setRequired(true)
         )
 
         .addStringOption(option =>
             option
-            .setName('punishment')
-            .setDescription('Punishment type')
-            .setRequired(true)
+                .setName('punishment')
+                .setDescription('Punishment type')
+                .setRequired(true)
 
-            .addChoices(
-                { name: 'Commander Strike', value: 'strike' },
-                { name: 'Blacklist', value: 'blacklist' },
-                { name: 'Removal', value: 'removal' },
-                { name: 'Commander Warning', value: 'warning' }
-            )
+                .addChoices(
+                    {
+                        name: 'Staff Strike',
+                        value: 'strike'
+                    },
+                    {
+                        name: 'Blacklist',
+                        value: 'blacklist'
+                    },
+                    {
+                        name: 'Removal',
+                        value: 'removal'
+                    },
+                    {
+                        name: 'Staff Warning',
+                        value: 'warning'
+                    }
+                )
         )
 
         .addStringOption(option =>
             option
-            .setName('reason')
-            .setDescription('Reason')
-            .setRequired(true)
+                .setName('reason')
+                .setDescription('Reason for punishment')
+                .setRequired(true)
         )
 
         .addStringOption(option =>
             option
-            .setName('duration')
-            .setDescription('Duration Example: 14d')
-            .setRequired(true)
+                .setName('duration')
+                .setDescription('Duration (Example: 14d)')
+                .setRequired(true)
         ),
 
     async execute(interaction) {
 
         const hasRole =
-        interaction.member.roles.cache.some(r =>
-            allowedRoles.includes(r.id)
-        );
+            interaction.member.roles.cache.some(role =>
+                allowedRoles.includes(role.id)
+            );
 
         if (!hasRole) {
 
             return interaction.reply({
-                content:
-                'You cannot use this command.',
+                content: 'You cannot use this command.',
                 ephemeral: true
             });
         }
 
         const user =
-        interaction.options.getUser('user');
+            interaction.options.getUser('user');
 
         const punishment =
-        interaction.options.getString('punishment');
+            interaction.options.getString('punishment');
 
         const reason =
-        interaction.options.getString('reason');
+            interaction.options.getString('reason');
 
         const duration =
-        interaction.options.getString('duration');
+            interaction.options.getString('duration');
 
         const member =
-        await interaction.guild.members.fetch(user.id);
+            await interaction.guild.members.fetch(user.id);
 
         let color = 'Yellow';
         let title = '';
@@ -94,10 +105,10 @@ module.exports = {
             color = 'Yellow';
 
             title =
-            '⚠️ You Have Received a Staff Warning';
+                '⚠️ You Have Received a Staff Warning';
 
             description =
-            'You have been issued a Staff warning.';
+                'You have been issued a Staff warning.';
 
             await member.roles.add(warningRole);
         }
@@ -107,10 +118,10 @@ module.exports = {
             color = 'Orange';
 
             title =
-            '⚠️ You Have Received a Staff Strike';
+                '⚠️ You Have Received a Staff Strike';
 
             description =
-            'You have been issued a Staff strike.';
+                'You have been issued a Staff strike.';
 
             await member.roles.add(strikeRole);
         }
@@ -120,11 +131,11 @@ module.exports = {
             color = 'DarkRed';
 
             title =
-            '⛔ You Have Been Blacklisted';
+                '⛔ You Have Been Blacklisted';
 
             description =
-            'You have been blacklisted from Staff.';
-            
+                'You have been blacklisted from Staff.';
+
             await member.roles.add(blacklistRole);
         }
 
@@ -133,13 +144,13 @@ module.exports = {
             color = 'Red';
 
             title =
-            '❌ You Have Been Removed from Staff';
+                '❌ You Have Been Removed from Staff';
 
             description =
-            'You have been removed from Staff.';
+                'You have been removed from the Staff team.';
         }
 
-        const embed = new EmbedBuilder()
+        const dmEmbed = new EmbedBuilder()
 
             .setColor(color)
 
@@ -179,12 +190,14 @@ module.exports = {
         try {
 
             await user.send({
-                embeds: [embed]
+                embeds: [dmEmbed]
             });
 
         } catch {
 
-            console.log('Could not DM user.');
+            console.log(
+                `Could not DM ${user.tag}.`
+            );
         }
 
         await interaction.reply({
@@ -193,11 +206,37 @@ module.exports = {
 
                 new EmbedBuilder()
 
-                .setColor('Green')
+                    .setColor('Green')
 
-                .setDescription(
-                    `Successfully issued **${punishment}** to ${user}.`
-                )
+                    .setTitle(
+                        '✅ Staff Punishment Issued'
+                    )
+
+                    .setDescription(
+
+                        `Successfully issued **${punishment}** to ${user}.`
+                    )
+
+                    .addFields(
+
+                        {
+                            name: 'Reason',
+                            value: reason,
+                            inline: false
+                        },
+
+                        {
+                            name: 'Duration',
+                            value: duration,
+                            inline: true
+                        },
+
+                        {
+                            name: 'Punished By',
+                            value: `${interaction.user}`,
+                            inline: true
+                        }
+                    )
             ]
         });
     }
