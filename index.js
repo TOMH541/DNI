@@ -74,14 +74,6 @@ client.on('interactionCreate', async interaction => {
 
     try {
 
-        if (interaction.isButton()) {
-
-            const officerReport =
-                require('./commands/officerreport.js');
-
-            return officerReport.buttonHandler(interaction);
-        }
-
         if (!interaction.isChatInputCommand()) return;
 
         const command =
