@@ -4,12 +4,12 @@ const {
 } = require('discord.js');
 
 const allowedRoles = [
-    '1507820452641509496'
+    '1515450853719277598'
 ];
 
-const strikeRole = '1507820599265853451';
-const blacklistRole = '1507820790349824161';
-const warningRole = '1507820732829274214';
+const strikeRole = '1515452574810116306';
+const blacklistRole = '1515452679034503292';
+const warningRole = '1515452739625418814';
 
 module.exports = {
 
@@ -94,10 +94,10 @@ module.exports = {
             color = 'Yellow';
 
             title =
-            '⚠️ You Have Received a Commander Warning';
+            '⚠️ You Have Received a Staff Warning';
 
             description =
-            'You have been issued a commander warning.';
+            'You have been issued a Staff warning.';
 
             await member.roles.add(warningRole);
         }
@@ -107,10 +107,10 @@ module.exports = {
             color = 'Orange';
 
             title =
-            '⚠️ You Have Received a Commander Strike';
+            '⚠️ You Have Received a Staff Strike';
 
             description =
-            'You have been issued a commander strike.';
+            'You have been issued a Staff strike.';
 
             await member.roles.add(strikeRole);
         }
@@ -123,7 +123,7 @@ module.exports = {
             '⛔ You Have Been Blacklisted';
 
             description =
-            'You have been blacklisted from command.';
+            'You have been blacklisted from Staff.';
             
             await member.roles.add(blacklistRole);
         }
@@ -133,10 +133,10 @@ module.exports = {
             color = 'Red';
 
             title =
-            '❌ You Have Been Removed from Command';
+            '❌ You Have Been Removed from Staff';
 
             description =
-            'You have been removed from command.';
+            'You have been removed from Staff.';
         }
 
         const embed = new EmbedBuilder()
