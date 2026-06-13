@@ -1,7 +1,7 @@
 {
-  "name": "ciu-utilities",
+  "name": "psrp-community-hub-utilities",
   "version": "1.0.0",
-  "description": "CIU Utilities Discord Bot",
+  "description": "PSRP Community Hub Utilities Discord Bot",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
