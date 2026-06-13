@@ -6,52 +6,67 @@ const {
     ButtonStyle
 } = require('discord.js');
 
-const allowedRoles = ['1504903869061136484'];
+const allowedRoles = [
+    '1515450853719277598'
+];
 
 module.exports = {
+
     data: new SlashCommandBuilder()
         .setName('rolerequest')
-        .setDescription('Request to add or remove a role')
+        .setDescription('Request to add and/or remove a role')
 
-        .addUserOption(option =>
-            option.setName('user')
-                .setDescription('User to modify')
-                .setRequired(true)
-        )
-
-        .addRoleOption(option =>
-            option.setName('role')
-                .setDescription('Role to add/remove')
-                .setRequired(true)
-        )
-
-        .addStringOption(option =>
-            option.setName('action')
-                .setDescription('Add or remove role')
-                .setRequired(true)
-                .addChoices(
-                    { name: 'Add Role', value: 'add' },
-                    { name: 'Remove Role', value: 'remove' }
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('add_role')
+                .setDescription('Request to add a role')
+                .addRoleOption(option =>
+                    option
+                        .setName('role')
+                        .setDescription('Role to add')
+                        .setRequired(true)
+                )
+                .addUserOption(option =>
+                    option
+                        .setName('requester')
+                        .setDescription('Who should receive the role')
+                        .setRequired(true)
                 )
         )
 
-        .addStringOption(option =>
-            option.setName('reason')
-                .setDescription('Reason for request')
-                .setRequired(false)
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('remove_role')
+                .setDescription('Request to remove a role')
+                .addRoleOption(option =>
+                    option
+                        .setName('role')
+                        .setDescription('Role to remove')
+                        .setRequired(true)
+                )
+                .addUserOption(option =>
+                    option
+                        .setName('requester')
+                        .setDescription('Who should lose the role')
+                        .setRequired(true)
+                )
         ),
 
     async execute(interaction) {
 
-        const target = interaction.options.getUser('user');
-        const role = interaction.options.getRole('role');
-        const actionType = interaction.options.getString('action');
-        const reason = interaction.options.getString('reason') || 'No reason provided';
+        const subcommand =
+            interaction.options.getSubcommand();
 
-        const actionText =
-            actionType === 'add'
-                ? 'Add Role'
-                : 'Remove Role';
+        const role =
+            interaction.options.getRole('role');
+
+        const requester =
+            interaction.options.getUser('requester');
+
+        const action =
+            subcommand === 'add_role'
+                ? 'Add'
+                : 'Remove';
 
         const embed = new EmbedBuilder()
             .setTitle('Role Request')
@@ -63,23 +78,13 @@ module.exports = {
                     inline: true
                 },
                 {
-                    name: 'Target User',
-                    value: `${target}`,
+                    name: 'Requester',
+                    value: `${requester}`,
                     inline: true
                 },
                 {
-                    name: 'Action',
-                    value: actionText,
-                    inline: true
-                },
-                {
-                    name: 'Role',
+                    name: 'Role to Add',
                     value: `${role}`,
-                    inline: true
-                },
-                {
-                    name: 'Reason',
-                    value: reason,
                     inline: false
                 },
                 {
@@ -93,12 +98,16 @@ module.exports = {
         const row = new ActionRowBuilder().addComponents(
 
             new ButtonBuilder()
-                .setCustomId(`approve_${target.id}_${role.id}_${actionType}`)
+                .setCustomId(
+                    `approve_${requester.id}_${role.id}_${action}`
+                )
                 .setLabel('Approve')
                 .setStyle(ButtonStyle.Success),
 
             new ButtonBuilder()
-                .setCustomId(`deny_${target.id}_${role.id}_${actionType}`)
+                .setCustomId(
+                    `deny_${requester.id}_${role.id}_${action}`
+                )
                 .setLabel('Deny')
                 .setStyle(ButtonStyle.Danger)
         );
@@ -109,77 +118,112 @@ module.exports = {
             fetchReply: true
         });
 
-        const collector = msg.createMessageComponentCollector();
+        const collector =
+            msg.createMessageComponentCollector();
 
         collector.on('collect', async i => {
 
-            const hasRole = i.member.roles.cache.some(r =>
-                allowedRoles.includes(r.id)
-            );
+            await i.deferUpdate();
+
+            const hasRole =
+                i.member.roles.cache.some(r =>
+                    allowedRoles.includes(r.id)
+                );
 
             if (!hasRole) {
-                return i.reply({
-                    content: 'You are not allowed to approve or deny requests.',
+
+                return i.followUp({
+                    content:
+                    'You are not allowed to approve or deny requests.',
                     ephemeral: true
                 });
             }
 
-            const [decision, userId, roleId, type] = i.customId.split('_');
+            const [
+                decision,
+                userId,
+                roleId,
+                requestAction
+            ] = i.customId.split('_');
 
-            const member = await interaction.guild.members.fetch(userId);
-            const guildRole = interaction.guild.roles.cache.get(roleId);
+            const member =
+                await interaction.guild.members.fetch(
+                    userId
+                );
+
+            const guildRole =
+                interaction.guild.roles.cache.get(
+                    roleId
+                );
 
             if (decision === 'approve') {
 
-                if (type === 'add') {
-                    await member.roles.add(guildRole);
-                }
+                if (requestAction === 'Add') {
 
-                if (type === 'remove') {
+                    await member.roles.add(guildRole);
+
+                } else {
+
                     await member.roles.remove(guildRole);
                 }
 
-                const approvedEmbed = EmbedBuilder.from(embed)
-                    .setColor('Green')
-                    .spliceFields(5, 1, {
-                        name: 'Status',
-                        value: 'Approved'
-                    });
+                const approvedEmbed =
+                    EmbedBuilder.from(embed)
+                        .setColor('Green')
+                        .spliceFields(3, 1, {
+                            name: 'Status',
+                            value: 'Approved'
+                        });
 
-                const approvedRow = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('approvedby')
-                        .setLabel(`Approved By ${i.user.username}`)
-                        .setStyle(ButtonStyle.Success)
-                        .setDisabled(true)
-                );
+                const disabledRow =
+                    new ActionRowBuilder()
+                        .addComponents(
 
-                await i.update({
+                            new ButtonBuilder()
+                                .setCustomId('approved')
+                                .setLabel(
+                                    `Role Request Approved By: ${i.user.username}`
+                                )
+                                .setStyle(
+                                    ButtonStyle.Success
+                                )
+                                .setDisabled(true)
+                        );
+
+                await i.editReply({
                     embeds: [approvedEmbed],
-                    components: [approvedRow]
+                    components: [disabledRow]
                 });
             }
 
             if (decision === 'deny') {
 
-                const deniedEmbed = EmbedBuilder.from(embed)
-                    .setColor('Red')
-                    .spliceFields(5, 1, {
-                        name: 'Status',
-                        value: 'Denied'
-                    });
+                const deniedEmbed =
+                    EmbedBuilder.from(embed)
+                        .setColor('Red')
+                        .spliceFields(3, 1, {
+                            name: 'Status',
+                            value: 'Denied'
+                        });
 
-                const deniedRow = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('deniedby')
-                        .setLabel(`Denied By ${i.user.username}`)
-                        .setStyle(ButtonStyle.Danger)
-                        .setDisabled(true)
-                );
+                const disabledRow =
+                    new ActionRowBuilder()
+                        .addComponents(
 
-                await i.update({
+                            new ButtonBuilder()
+                                .setCustomId('denied')
+                                .setLabel(
+                                    `Role Request Denied By: ${i.user.username}`
+                                )
+                                .setStyle(
+                                    ButtonStyle.Danger
+                                )
+                                .setDisabled(true)
+                        );
+
+                await i.editReply({
                     embeds: [deniedEmbed],
-                    components: [deniedRow]
+                    components: [disabledRow]
                 });
             }
         });
