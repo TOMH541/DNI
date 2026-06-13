@@ -9,7 +9,7 @@ const {
 const fs = require('fs');
 
 const allowedRoles = [
-    '1507820452641509496'
+    '1515450853719277598'
 ];
 
 const LOG_FILE = './tasklogs.json';
