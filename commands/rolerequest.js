@@ -13,59 +13,61 @@ const allowedRoles = [
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('rolerequest')
-        .setDescription('Request to add or remove a role')
+        .setDescription('Request a role to be added or removed')
 
-        .addSubcommand(subcommand =>
-            subcommand
+        .addRoleOption(option =>
+            option
                 .setName('add_role')
-                .setDescription('Request to add a role')
-                .addRoleOption(option =>
-                    option
-                        .setName('role')
-                        .setDescription('Role to add')
-                        .setRequired(true)
-                )
-                .addUserOption(option =>
-                    option
-                        .setName('requester')
-                        .setDescription('User receiving the role')
-                        .setRequired(true)
-                )
+                .setDescription('Role to add')
+                .setRequired(false)
         )
 
-        .addSubcommand(subcommand =>
-            subcommand
+        .addRoleOption(option =>
+            option
                 .setName('remove_role')
-                .setDescription('Request to remove a role')
-                .addRoleOption(option =>
-                    option
-                        .setName('role')
-                        .setDescription('Role to remove')
-                        .setRequired(true)
-                )
-                .addUserOption(option =>
-                    option
-                        .setName('requester')
-                        .setDescription('User losing the role')
-                        .setRequired(true)
-                )
+                .setDescription('Role to remove')
+                .setRequired(false)
+        )
+
+        .addUserOption(option =>
+            option
+                .setName('requester')
+                .setDescription('User affected by the request')
+                .setRequired(false)
         ),
 
     async execute(interaction) {
 
-        const subcommand =
-            interaction.options.getSubcommand();
+        const addRole =
+            interaction.options.getRole('add_role');
 
-        const role =
-            interaction.options.getRole('role');
+        const removeRole =
+            interaction.options.getRole('remove_role');
 
         const requester =
-            interaction.options.getUser('requester');
+            interaction.options.getUser('requester')
+            || interaction.user;
+
+        if (!addRole && !removeRole) {
+            return interaction.reply({
+                content:
+                    'You must select a role to add or remove.',
+                flags: 64
+            });
+        }
+
+        if (addRole && removeRole) {
+            return interaction.reply({
+                content:
+                    'You can only request one action at a time.',
+                flags: 64
+            });
+        }
+
+        const role = addRole || removeRole;
 
         const requestType =
-            subcommand === 'add_role'
-                ? 'Add'
-                : 'Remove';
+            addRole ? 'Add' : 'Remove';
 
         const embed = new EmbedBuilder()
             .setTitle('Role Request')
@@ -99,6 +101,7 @@ module.exports = {
 
         const row = new ActionRowBuilder()
             .addComponents(
+
                 new ButtonBuilder()
                     .setCustomId(
                         `approve_${requester.id}_${role.id}_${requestType}`
@@ -120,7 +123,8 @@ module.exports = {
             fetchReply: true
         });
 
-        const collector = msg.createMessageComponentCollector();
+        const collector =
+            msg.createMessageComponentCollector();
 
         collector.on('collect', async i => {
 
@@ -145,10 +149,14 @@ module.exports = {
             ] = i.customId.split('_');
 
             const member =
-                await interaction.guild.members.fetch(userId);
+                await interaction.guild.members.fetch(
+                    userId
+                );
 
             const guildRole =
-                interaction.guild.roles.cache.get(roleId);
+                interaction.guild.roles.cache.get(
+                    roleId
+                );
 
             if (decision === 'approve') {
 
@@ -172,19 +180,17 @@ module.exports = {
                 const disabledRow =
                     new ActionRowBuilder()
                         .addComponents(
+
                             new ButtonBuilder()
                                 .setCustomId('approved')
                                 .setLabel(
                                     `Approved By: ${i.user.username}`
                                 )
-                                .setStyle(ButtonStyle.Success)
+                                .setStyle(
+                                    ButtonStyle.Success
+                                )
                                 .setDisabled(true)
                         );
-
-                await i.update({
-                    embeds: [approvedEmbed],
-                    components: [disabledRow]
-                });
 
                 try {
 
@@ -192,7 +198,9 @@ module.exports = {
                         embeds: [
                             new EmbedBuilder()
                                 .setColor('Green')
-                                .setTitle('Role Request Approved')
+                                .setTitle(
+                                    'Role Request Approved'
+                                )
                                 .setDescription(
                                     action === 'Add'
                                         ? `You have been given the ${guildRole} role.`
@@ -210,6 +218,11 @@ module.exports = {
                     });
 
                 } catch {}
+
+                await i.update({
+                    embeds: [approvedEmbed],
+                    components: [disabledRow]
+                });
             }
 
             if (decision === 'deny') {
@@ -225,19 +238,17 @@ module.exports = {
                 const disabledRow =
                     new ActionRowBuilder()
                         .addComponents(
+
                             new ButtonBuilder()
                                 .setCustomId('denied')
                                 .setLabel(
                                     `Denied By: ${i.user.username}`
                                 )
-                                .setStyle(ButtonStyle.Danger)
+                                .setStyle(
+                                    ButtonStyle.Danger
+                                )
                                 .setDisabled(true)
                         );
-
-                await i.update({
-                    embeds: [deniedEmbed],
-                    components: [disabledRow]
-                });
 
                 try {
 
@@ -245,7 +256,9 @@ module.exports = {
                         embeds: [
                             new EmbedBuilder()
                                 .setColor('Red')
-                                .setTitle('Role Request Denied')
+                                .setTitle(
+                                    'Role Request Denied'
+                                )
                                 .setDescription(
                                     `Your request involving ${guildRole} was denied.`
                                 )
@@ -261,6 +274,11 @@ module.exports = {
                     });
 
                 } catch {}
+
+                await i.update({
+                    embeds: [deniedEmbed],
+                    components: [disabledRow]
+                });
             }
         });
     }
