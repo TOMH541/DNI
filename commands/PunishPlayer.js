@@ -26,30 +26,22 @@ function generateID() {
     return Math.floor(1000000000 + Math.random() * 9000000000).toString();
 }
 
-function parseDuration(str) {
-    const match = str.match(/(\d+)([smhd])/);
-    if (!match) return 0;
-
-    const num = parseInt(match[1]);
-    const unit = match[2];
-
-    if (unit === 's') return num * 1000;
-    if (unit === 'm') return num * 60000;
-    if (unit === 'h') return num * 3600000;
-    if (unit === 'd') return num * 86400000;
-
-    return 0;
-}
-
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('punishment')
-        .setDescription('Issue a punishment')
-        .addUserOption(o =>
-            o.setName('user').setRequired(true)
+        .setDescription('Issue a punishment to a user')
+
+        .addUserOption(option =>
+            option
+                .setName('user')
+                .setDescription('User being punished')
+                .setRequired(true)
         )
-        .addStringOption(o =>
-            o.setName('punishment')
+
+        .addStringOption(option =>
+            option
+                .setName('punishment')
+                .setDescription('Type of punishment')
                 .setRequired(true)
                 .addChoices(
                     { name: 'Ban', value: 'ban' },
@@ -57,14 +49,22 @@ module.exports = {
                     { name: 'Warning', value: 'warning' }
                 )
         )
-        .addStringOption(o =>
-            o.setName('reason').setRequired(true)
+
+        .addStringOption(option =>
+            option
+                .setName('reason')
+                .setDescription('Reason for punishment')
+                .setRequired(true)
         )
-        .addStringOption(o =>
-            o.setName('duration').setRequired(true)
+
+        .addStringOption(option =>
+            option
+                .setName('duration')
+                .setDescription('Duration (e.g. 14d, 6h, 10m)')
+                .setRequired(true)
         ),
 
-    async execute(interaction, client) {
+    async execute(interaction) {
 
         const hasRole = interaction.member.roles.cache.some(r =>
             allowedRoles.includes(r.id)
@@ -72,7 +72,7 @@ module.exports = {
 
         if (!hasRole) {
             return interaction.reply({
-                content: 'No permission.',
+                content: '❌ No permission.',
                 flags: 64
             });
         }
@@ -86,18 +86,36 @@ module.exports = {
 
         const id = generateID();
 
-        let ms = parseDuration(duration);
+        // Apply punishment safely
+        try {
 
-        // APPLY
-        if (type === 'ban') {
-            await interaction.guild.members.ban(user.id, { reason }).catch(() => {});
+            if (type === 'ban') {
+                await interaction.guild.members.ban(user.id, { reason });
+            }
+
+            if (type === 'timeout' && member) {
+
+                let ms = 0;
+                const match = duration.match(/(\d+)([smhd])/);
+
+                if (match) {
+                    const num = parseInt(match[1]);
+                    const unit = match[2];
+
+                    if (unit === 's') ms = num * 1000;
+                    if (unit === 'm') ms = num * 60000;
+                    if (unit === 'h') ms = num * 3600000;
+                    if (unit === 'd') ms = num * 86400000;
+                }
+
+                await member.timeout(ms, reason);
+            }
+
+        } catch (err) {
+            console.log('Punishment error:', err);
         }
 
-        if (type === 'timeout' && member) {
-            await member.timeout(ms, reason).catch(() => {});
-        }
-
-        // DB
+        // Save DB
         const db = loadDB();
 
         db[id] = {
@@ -105,9 +123,7 @@ module.exports = {
             type,
             reason,
             duration,
-            status: 'pending',
-            guildId: interaction.guild.id,
-            channelId: logChannelId
+            status: 'pending'
         };
 
         saveDB(db);
@@ -116,12 +132,12 @@ module.exports = {
             .setTitle('Punishment Issued')
             .setColor('Red')
             .addFields(
-                { name: 'User', value: `${user}` },
-                { name: 'Punishment', value: type },
-                { name: 'Reason', value: reason },
-                { name: 'Duration', value: duration },
-                { name: 'ID', value: id },
-                { name: 'Status', value: 'Pending' }
+                { name: 'User', value: `${user}`, inline: true },
+                { name: 'Type', value: type, inline: true },
+                { name: 'Reason', value: reason, inline: false },
+                { name: 'Duration', value: duration, inline: true },
+                { name: 'ID', value: id, inline: true },
+                { name: 'Status', value: 'Pending', inline: false }
             );
 
         const row = new ActionRowBuilder().addComponents(
@@ -149,14 +165,14 @@ module.exports = {
         });
 
         const thread = await msg.startThread({
-            name: `Proof - ${id}`,
+            name: `Proof-${id}`,
             autoArchiveDuration: 1440
         });
 
-        await thread.send(`<@${interaction.user.id}> Please send proof here.`);
+        await thread.send(`📌 <@${interaction.user.id}> please provide proof here.`);
 
-        await interaction.reply({
-            content: 'Punishment issued.',
+        return interaction.reply({
+            content: '✅ Punishment issued successfully.',
             flags: 64
         });
     }
