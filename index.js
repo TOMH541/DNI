@@ -18,6 +18,23 @@ const client = new Client({
     ]
 });
 
+// ================================
+// SAFE DATABASE BOOTSTRAP (FIX)
+// ================================
+const dbFolder = './data';
+const dbPath = './data/punishments.json';
+
+if (!fs.existsSync(dbFolder)) {
+    fs.mkdirSync(dbFolder);
+}
+
+if (!fs.existsSync(dbPath)) {
+    fs.writeFileSync(dbPath, '{}');
+}
+
+// ================================
+// COMMAND LOADING
+// ================================
 client.commands = new Collection();
 
 const commandFiles = fs
@@ -36,7 +53,9 @@ for (const file of commandFiles) {
     }
 }
 
-// REST register
+// ================================
+// REGISTER COMMANDS
+// ================================
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 
 (async () => {
@@ -54,9 +73,9 @@ const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
     }
 })();
 
-// =============================
-// INTERACTIONS
-// =============================
+// ================================
+// INTERACTIONS (BUTTON SAFE FIX)
+// ================================
 client.on('interactionCreate', async (interaction) => {
 
     try {
@@ -64,17 +83,17 @@ client.on('interactionCreate', async (interaction) => {
         // ================= BUTTONS =================
         if (interaction.isButton()) {
 
-            const fs = require('fs');
-            const path = './data/punishments.json';
-
-            if (!fs.existsSync(path)) {
-                return interaction.reply({
-                    content: 'Database missing.',
-                    flags: 64
-                });
+            if (!fs.existsSync(dbPath)) {
+                fs.writeFileSync(dbPath, '{}');
             }
 
-            let db = JSON.parse(fs.readFileSync(path, 'utf8'));
+            let db;
+
+            try {
+                db = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+            } catch {
+                db = {};
+            }
 
             const allowedRoles = ['1515450853719277598'];
 
@@ -84,17 +103,18 @@ client.on('interactionCreate', async (interaction) => {
 
             if (!hasRole) {
                 return interaction.reply({
-                    content: 'You are not allowed.',
+                    content: '❌ No permission.',
                     flags: 64
                 });
             }
 
             const [action, id] = interaction.customId.split('_');
+
             const data = db[id];
 
             if (!data) {
                 return interaction.reply({
-                    content: 'Punishment not found.',
+                    content: '❌ Case not found (may have expired).',
                     flags: 64
                 });
             }
@@ -106,7 +126,8 @@ client.on('interactionCreate', async (interaction) => {
             if (action === 'approve') {
 
                 data.status = 'approved';
-                fs.writeFileSync(path, JSON.stringify(db, null, 2));
+
+                fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
 
                 return interaction.update({
                     content: `✅ Approved by ${interaction.user.tag}`,
@@ -118,7 +139,6 @@ client.on('interactionCreate', async (interaction) => {
             if (action === 'revoke') {
 
                 try {
-
                     if (data.type === 'ban') {
                         await guild.members.unban(data.userId).catch(() => {});
                     }
@@ -126,13 +146,13 @@ client.on('interactionCreate', async (interaction) => {
                     if (data.type === 'timeout' && member) {
                         await member.timeout(null).catch(() => {});
                     }
-
                 } catch (err) {
                     console.log(err);
                 }
 
                 data.status = 'revoked';
-                fs.writeFileSync(path, JSON.stringify(db, null, 2));
+
+                fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
 
                 return interaction.update({
                     content: `❌ Revoked by ${interaction.user.tag}`,
@@ -149,12 +169,12 @@ client.on('interactionCreate', async (interaction) => {
 
                 if (thread) {
                     await thread.send(
-                        `🔔 <@${interaction.user.id}> please provide proof for **${id}**`
+                        `📌 <@${interaction.user.id}> please provide proof for **${id}**`
                     );
                 }
 
                 return interaction.reply({
-                    content: 'Reminder sent.',
+                    content: '📩 Reminder sent.',
                     flags: 64
                 });
             }
@@ -170,23 +190,26 @@ client.on('interactionCreate', async (interaction) => {
         await command.execute(interaction, client);
 
     } catch (err) {
-        console.error(err);
+
+        console.error('INTERACTION ERROR:', err);
 
         if (interaction.replied || interaction.deferred) {
             await interaction.followUp({
-                content: 'Error occurred.',
+                content: '❌ Error occurred safely.',
                 flags: 64
             });
         } else {
             await interaction.reply({
-                content: 'Error occurred.',
+                content: '❌ Error occurred safely.',
                 flags: 64
             });
         }
     }
 });
 
-// ready
+// ================================
+// READY EVENT
+// ================================
 client.once('clientReady', () => {
     console.log(`${client.user.tag} is online.`);
 });
