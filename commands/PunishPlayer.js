@@ -3,177 +3,398 @@ const {
     EmbedBuilder,
     ActionRowBuilder,
     ButtonBuilder,
-    ButtonStyle
+    ButtonStyle,
+    ChannelType
 } = require('discord.js');
 
 const fs = require('fs');
 
-const allowedRoles = ['1515450853719277598'];
-const logChannelId = '1515510902785446010';
+const STAFF_ROLE = '1515450853719277598';
+const LOG_CHANNEL = '1515510902785446010';
 
-const dbPath = './data/punishments.json';
+const DATA_FOLDER = './data';
+const DATA_FILE = './data/punishments.json';
 
-function loadDB() {
-    if (!fs.existsSync(dbPath)) return {};
-    return JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+function ensureDatabase() {
+    if (!fs.existsSync(DATA_FOLDER)) {
+        fs.mkdirSync(DATA_FOLDER);
+    }
+
+    if (!fs.existsSync(DATA_FILE)) {
+        fs.writeFileSync(DATA_FILE, '{}');
+    }
 }
 
-function saveDB(db) {
-    fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
+function loadCases() {
+    ensureDatabase();
+
+    try {
+        return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    } catch {
+        return {};
+    }
 }
 
-function generateID() {
-    return Math.floor(1000000000 + Math.random() * 9000000000).toString();
+function saveCases(data) {
+    ensureDatabase();
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+}
+
+function generateCaseID() {
+    return Math.floor(
+        1000000000 + Math.random() * 9000000000
+    ).toString();
+}
+
+function parseDuration(duration) {
+    const match = duration.match(/^(\d+)([smhd])$/);
+
+    if (!match) return null;
+
+    const amount = parseInt(match[1]);
+    const unit = match[2];
+
+    const multipliers = {
+        s: 1000,
+        m: 60000,
+        h: 3600000,
+        d: 86400000
+    };
+
+    return amount * multipliers[unit];
 }
 
 module.exports = {
+
     data: new SlashCommandBuilder()
         .setName('punishment')
-        .setDescription('Issue a punishment to a user')
+        .setDescription('Issue a punishment.')
 
         .addUserOption(option =>
             option
                 .setName('user')
-                .setDescription('User being punished')
+                .setDescription('User to punish')
                 .setRequired(true)
         )
 
         .addStringOption(option =>
             option
                 .setName('punishment')
-                .setDescription('Type of punishment')
+                .setDescription('Punishment type')
                 .setRequired(true)
                 .addChoices(
-                    { name: 'Ban', value: 'ban' },
+                    { name: 'Warning', value: 'warning' },
                     { name: 'Timeout', value: 'timeout' },
-                    { name: 'Warning', value: 'warning' }
+                    { name: 'Ban', value: 'ban' }
                 )
         )
 
         .addStringOption(option =>
             option
                 .setName('reason')
-                .setDescription('Reason for punishment')
+                .setDescription('Reason')
                 .setRequired(true)
         )
 
         .addStringOption(option =>
             option
                 .setName('duration')
-                .setDescription('Duration (e.g. 14d, 6h, 10m)')
-                .setRequired(true)
+                .setDescription('Example: 7d (required for timeout)')
+                .setRequired(false)
         ),
 
     async execute(interaction) {
 
-        const hasRole = interaction.member.roles.cache.some(r =>
-            allowedRoles.includes(r.id)
-        );
-
-        if (!hasRole) {
+        if (
+            !interaction.member.roles.cache.has(STAFF_ROLE)
+        ) {
             return interaction.reply({
-                content: '❌ No permission.',
-                flags: 64
+                content: '❌ You cannot use this command.',
+                ephemeral: true
             });
         }
 
-        const user = interaction.options.getUser('user');
-        const type = interaction.options.getString('punishment');
-        const reason = interaction.options.getString('reason');
-        const duration = interaction.options.getString('duration');
+        const user =
+            interaction.options.getUser('user');
 
-        const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+        const type =
+            interaction.options.getString('punishment');
 
-        const id = generateID();
+        const reason =
+            interaction.options.getString('reason');
+
+        const duration =
+            interaction.options.getString('duration');
+
+        const caseID = generateCaseID();
+
+        let member = null;
+
+        try {
+            member = await interaction.guild.members.fetch(
+                user.id
+            );
+        } catch {}
 
         // Apply punishment safely
         try {
 
-            if (type === 'ban') {
-                await interaction.guild.members.ban(user.id, { reason });
-            }
+            if (
+                type === 'timeout' &&
+                member
+            ) {
 
-            if (type === 'timeout' && member) {
-
-                let ms = 0;
-                const match = duration.match(/(\d+)([smhd])/);
-
-                if (match) {
-                    const num = parseInt(match[1]);
-                    const unit = match[2];
-
-                    if (unit === 's') ms = num * 1000;
-                    if (unit === 'm') ms = num * 60000;
-                    if (unit === 'h') ms = num * 3600000;
-                    if (unit === 'd') ms = num * 86400000;
+                if (!member.moderatable) {
+                    return interaction.reply({
+                        content:
+                            '❌ I cannot timeout this user.',
+                        ephemeral: true
+                    });
                 }
 
-                await member.timeout(ms, reason);
+                const ms =
+                    parseDuration(duration);
+
+                if (!ms) {
+                    return interaction.reply({
+                        content:
+                            '❌ Invalid duration.',
+                        ephemeral: true
+                    });
+                }
+
+                await member.timeout(
+                    ms,
+                    reason
+                );
+            }
+
+            if (type === 'ban') {
+
+                await interaction.guild.members.ban(
+                    user.id,
+                    { reason }
+                );
             }
 
         } catch (err) {
-            console.log('Punishment error:', err);
+
+            console.error(err);
+
+            return interaction.reply({
+                content:
+                    '❌ Failed to apply punishment.',
+                ephemeral: true
+            });
         }
 
-        // Save DB
-        const db = loadDB();
+        // DM User
+        try {
 
-        db[id] = {
+            const dmEmbed =
+                new EmbedBuilder()
+
+                    .setColor('Red')
+
+                    .setTitle(
+                        'Punishment Issued'
+                    )
+
+                    .addFields(
+                        {
+                            name: 'Punishment',
+                            value: type
+                        },
+                        {
+                            name: 'Reason',
+                            value: reason
+                        },
+                        {
+                            name: 'Duration',
+                            value:
+                                duration ||
+                                'N/A'
+                        },
+                        {
+                            name: 'Issued By',
+                            value:
+                                `${interaction.user}`
+                        }
+                    );
+
+            await user.send({
+                embeds: [dmEmbed]
+            });
+
+        } catch {}
+
+        // Save case
+        const cases = loadCases();
+
+        cases[caseID] = {
+
             userId: user.id,
+
+            moderatorId:
+                interaction.user.id,
+
             type,
+
             reason,
-            duration,
-            status: 'pending'
+
+            duration:
+                duration || 'N/A',
+
+            timestamp:
+                Date.now(),
+
+            status: 'Pending'
         };
 
-        saveDB(db);
+        saveCases(cases);
 
-        const embed = new EmbedBuilder()
-            .setTitle('Punishment Issued')
-            .setColor('Red')
-            .addFields(
-                { name: 'User', value: `${user}`, inline: true },
-                { name: 'Type', value: type, inline: true },
-                { name: 'Reason', value: reason, inline: false },
-                { name: 'Duration', value: duration, inline: true },
-                { name: 'ID', value: id, inline: true },
-                { name: 'Status', value: 'Pending', inline: false }
+        // Log Embed
+        const embed =
+            new EmbedBuilder()
+
+                .setColor('Red')
+
+                .setTitle(
+                    'Punishment Issued'
+                )
+
+                .addFields(
+
+                    {
+                        name:
+                            'Punished User',
+                        value:
+                            `${user}`
+                    },
+
+                    {
+                        name:
+                            'Punished By',
+                        value:
+                            `${interaction.user}`
+                    },
+
+                    {
+                        name:
+                            'Punishment',
+                        value: type
+                    },
+
+                    {
+                        name:
+                            'Reason',
+                        value: reason
+                    },
+
+                    {
+                        name:
+                            'Duration',
+                        value:
+                            duration ||
+                            'N/A'
+                    },
+
+                    {
+                        name:
+                            'Case ID',
+                        value:
+                            caseID
+                    }
+                );
+
+        const row =
+            new ActionRowBuilder()
+
+                .addComponents(
+
+                    new ButtonBuilder()
+
+                        .setCustomId(
+                            `approve_${caseID}`
+                        )
+
+                        .setLabel(
+                            'Approve'
+                        )
+
+                        .setStyle(
+                            ButtonStyle.Success
+                        ),
+
+                    new ButtonBuilder()
+
+                        .setCustomId(
+                            `revoke_${caseID}`
+                        )
+
+                        .setLabel(
+                            'Revoke'
+                        )
+
+                        .setStyle(
+                            ButtonStyle.Danger
+                        ),
+
+                    new ButtonBuilder()
+
+                        .setCustomId(
+                            `remind_${caseID}`
+                        )
+
+                        .setLabel(
+                            'Remind For Proof'
+                        )
+
+                        .setStyle(
+                            ButtonStyle.Secondary
+                        )
+                );
+
+        const channel =
+            interaction.guild.channels.cache.get(
+                LOG_CHANNEL
             );
 
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId(`approve_${id}`)
-                .setLabel('Approve')
-                .setStyle(ButtonStyle.Success),
+        if (channel) {
 
-            new ButtonBuilder()
-                .setCustomId(`revoke_${id}`)
-                .setLabel('Revoke')
-                .setStyle(ButtonStyle.Danger),
+            const message =
+                await channel.send({
 
-            new ButtonBuilder()
-                .setCustomId(`remind_${id}`)
-                .setLabel('Remind For Proof')
-                .setStyle(ButtonStyle.Secondary)
-        );
+                    embeds: [embed],
 
-        const channel = await interaction.guild.channels.fetch(logChannelId);
+                    components: [row]
+                });
 
-        const msg = await channel.send({
-            embeds: [embed],
-            components: [row]
-        });
+            const thread =
+                await message.startThread({
 
-        const thread = await msg.startThread({
-            name: `Proof-${id}`,
-            autoArchiveDuration: 1440
-        });
+                    name:
+                        `Proof-${caseID}`,
 
-        await thread.send(`📌 <@${interaction.user.id}> please provide proof here.`);
+                    autoArchiveDuration:
+                        1440,
 
-        return interaction.reply({
-            content: '✅ Punishment issued successfully.',
-            flags: 64
+                    type:
+                        ChannelType.PrivateThread
+                });
+
+            await thread.send(
+
+                `<@${interaction.user.id}> Please send proof here.`
+            );
+        }
+
+        await interaction.reply({
+
+            content:
+                `✅ Punishment issued. Case ID: ${caseID}`,
+
+            ephemeral: true
         });
     }
 };
