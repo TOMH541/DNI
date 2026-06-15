@@ -199,113 +199,156 @@ module.exports = {
         const collector =
             msg.createMessageComponentCollector();
 
-        collector.on(
-            'collect',
+        collector.on('collect', async i => {
 
-            async i => {
-
-                if (
-                    i.customId !==
-                    `tmodcreate_${interaction.user.id}`
-                ) {
-                    return;
-                }
-
-                const canUse =
-                    i.member.roles.cache.has(
-                        EVALUATOR_ROLE
-                    );
-
-                if (!canUse) {
-
-                    return i.reply({
-
-                        content:
-                            '❌ You cannot use this button.',
-
-                        ephemeral: true
-                    });
-                }
-
-                await i.deferUpdate();
-
-                let created = 0;
-
-                for (const entry of eligible) {
-
-                    try {
-
-                        const thread =
-                            await msg.startThread({
-
-                                name:
-                                    `${entry.member.user.username} - Trial Mod Promotion`,
-
-                                autoArchiveDuration:
-                                    1440,
-
-                                type:
-                                    ChannelType.PublicThread
-                            });
-
-                        await thread.send({
-
-                            content:
-                                `${entry.member}\n\nPlease complete this Trial Moderator interview.`
-                        });
-
-                        created++;
-
-                    } catch (err) {
-
-                        console.error(err);
-                    }
-                }
-
-                const completed =
-                    EmbedBuilder.from(embed)
-
-                        .setColor('Green')
-
-                        .addFields({
-
-                            name:
-                                'Completed',
-
-                            value:
-                                `✅ ${created} promotion thread(s) created by ${i.user}`
-                        });
-
-                const disabled =
-                    new ActionRowBuilder()
-
-                        .addComponents(
-
-                            new ButtonBuilder()
-
-                                .setCustomId(
-                                    'created'
-                                )
-
-                                .setLabel(
-                                    `Completed By ${i.user.username}`
-                                )
-
-                                .setStyle(
-                                    ButtonStyle.Success
-                                )
-
-                                .setDisabled(true)
-                        );
-
-                await i.editReply({
-
-                    embeds: [completed],
-
-                    components:
-                        [disabled]
-                });
-            }
-        );
+    if (i.customId !== `tmodcreate_${interaction.user.id}`) {
+        return;
     }
-};
+
+    const hasRole =
+        i.member.roles.cache.has(
+            EVALUATOR_ROLE
+        );
+
+    if (!hasRole) {
+
+        return i.reply({
+
+            content:
+                '❌ You cannot use this button.',
+
+            ephemeral: true
+        });
+    }
+
+    await i.deferUpdate();
+
+    for (const [, member] of tmods) {
+
+        const count =
+            logs[member.id] || 0;
+
+        const eligible =
+            count >= 3;
+
+        const promoEmbed =
+            new EmbedBuilder()
+
+                .setColor(
+                    eligible
+                        ? 'Green'
+                        : 'Red'
+                )
+
+                .setTitle(
+                    'Trial Moderator Promotion'
+                )
+
+                .setThumbnail(
+                    member.user.displayAvatarURL()
+                )
+
+                .addFields(
+
+                    {
+                        name: 'User',
+                        value: `${member}`,
+                        inline: true
+                    },
+
+                    {
+                        name: 'Logs',
+                        value: `${count}/3`,
+                        inline: true
+                    },
+
+                    {
+                        name: 'Status',
+                        value:
+                            eligible
+                                ? '✅ Eligible'
+                                : '❌ Not Eligible',
+                        inline: false
+                    }
+                )
+
+                .setTimestamp();
+
+        const components = [];
+
+        if (eligible) {
+
+            components.push(
+
+                new ActionRowBuilder()
+
+                    .addComponents(
+
+                        new ButtonBuilder()
+
+                            .setCustomId(
+                                `tmodpromote_${member.id}`
+                            )
+
+                            .setLabel(
+                                'Complete Interview'
+                            )
+
+                            .setStyle(
+                                ButtonStyle.Success
+                            )
+                    )
+            );
+        }
+
+        const message =
+            await interaction.channel.send({
+
+                embeds: [promoEmbed],
+
+                components
+            });
+
+        const thread =
+            await message.startThread({
+
+                name:
+                    `${member.user.username} - Trial Mod Promotion`,
+
+                autoArchiveDuration: 1440
+            });
+
+        await thread.send({
+
+            content:
+                `${member}\n\nPlease complete this Trial Moderator interview.`
+        });
+    }
+
+    await i.editReply({
+
+        components: [
+
+            new ActionRowBuilder()
+
+                .addComponents(
+
+                    new ButtonBuilder()
+
+                        .setCustomId(
+                            'completed'
+                        )
+
+                        .setLabel(
+                            `Completed By ${i.user.username}`
+                        )
+
+                        .setStyle(
+                            ButtonStyle.Success
+                        )
+
+                        .setDisabled(true)
+                )
+        ]
+    });
+});
