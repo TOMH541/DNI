@@ -142,15 +142,50 @@ client.on(
                     );
 
                 await member.roles.add(
-                    moderatorRole
-                );
+    moderatorRole
+);
 
-                await member.roles.remove(
-                    trialModRole
-                );
+await member.roles.remove(
+    trialModRole
+);
 
-                const oldEmbed =
-                    interaction.message.embeds[0];
+// ======================
+// RESET TMOD LOGS
+// ======================
+let logs = {};
+
+if (fs.existsSync('./tasklogs.json')) {
+
+    try {
+
+        logs = JSON.parse(
+            fs.readFileSync(
+                './tasklogs.json',
+                'utf8'
+            )
+        );
+
+    } catch {
+
+        logs = {};
+    }
+}
+
+delete logs[userId];
+
+fs.writeFileSync(
+
+    './tasklogs.json',
+
+    JSON.stringify(
+        logs,
+        null,
+        2
+    )
+);
+
+const oldEmbed =
+    interaction.message.embeds[0];
 
                 const updatedEmbed =
                     EmbedBuilder.from(
