@@ -1,5 +1,3 @@
-// commands/tmodpromos.js
-
 const {
     SlashCommandBuilder,
     EmbedBuilder,
@@ -88,7 +86,6 @@ module.exports = {
         }
 
         const eligible = [];
-        const notEligible = [];
 
         for (const [, member] of tmods) {
 
@@ -98,14 +95,6 @@ module.exports = {
             if (count >= 3) {
 
                 eligible.push({
-
-                    member,
-                    count
-                });
-
-            } else {
-
-                notEligible.push({
 
                     member,
                     count
@@ -134,8 +123,7 @@ module.exports = {
 
                         value:
                             `**Total Trial Mods:** ${tmods.size}\n` +
-                            `**Eligible:** ${eligible.length}\n` +
-                            `**Not Eligible:** ${notEligible.length}`
+                            `**Eligible:** ${eligible.length}`
                     },
 
                     {
