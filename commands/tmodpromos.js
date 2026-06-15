@@ -37,10 +37,18 @@ module.exports = {
             logs = JSON.parse(fs.readFileSync('./tasklogs.json', 'utf8'));
         }
 
-        const tmods =
-            interaction.guild.members.cache.filter(member =>
-                member.roles.cache.has(TRIAL_MOD_ROLE)
-            );
+        const tmods = interaction.guild.members.cache.filter(member => {
+
+    // MUST ONLY be Trial Mod role
+    const hasTrialModRole =
+        member.roles.cache.has(TRIAL_MOD_ROLE);
+
+    // MUST NOT have higher Moderator role (prevents crossover)
+    const hasModeratorRole =
+        member.roles.cache.has('1515335023383806082');
+
+    return hasTrialModRole && !hasModeratorRole;
+});
 
         if (tmods.size === 0) {
             return interaction.reply({
