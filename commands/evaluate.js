@@ -8,7 +8,6 @@ const {
 const fs = require('fs');
 
 const EVALUATOR_ROLE = '1515133506852749493';
-const REQUIRED_LOGS = 3;
 
 module.exports = {
 
@@ -17,19 +16,7 @@ module.exports = {
         .setName('evaluate')
 
         .setDescription(
-            'Evaluate a Trial Moderator for promotion eligibility.'
-        )
-
-        .addUserOption(option =>
-            option
-
-                .setName('user')
-
-                .setDescription(
-                    'Trial Moderator to evaluate'
-                )
-
-                .setRequired(true)
+            'View everyone\'s logs for the current cycle.'
         ),
 
     async execute(interaction) {
@@ -45,25 +32,6 @@ module.exports = {
 
                 content:
                     '❌ You cannot use this command.',
-
-                ephemeral: true
-            });
-        }
-
-        const user =
-            interaction.options.getUser('user');
-
-        const member =
-            await interaction.guild.members
-                .fetch(user.id)
-                .catch(() => null);
-
-        if (!member) {
-
-            return interaction.reply({
-
-                content:
-                    '❌ User not found.',
 
                 ephemeral: true
             });
@@ -89,68 +57,46 @@ module.exports = {
             }
         }
 
-        const count =
-            logs[user.id] || 0;
+        if (Object.keys(logs).length === 0) {
 
-        const eligible =
-            count >= REQUIRED_LOGS;
+            return interaction.reply({
+
+                content:
+                    '❌ No logs have been recorded this cycle.',
+
+                ephemeral: true
+            });
+        }
+
+        const sortedLogs =
+            Object.entries(logs)
+                .sort((a, b) => b[1] - a[1]);
+
+        let description = '';
+
+        for (const [userId, count] of sortedLogs) {
+
+            description +=
+                `<@${userId}> • **${count} logs**\n`;
+        }
 
         const embed =
             new EmbedBuilder()
 
-                .setColor(
-                    eligible
-                        ? 'Green'
-                        : 'Red'
-                )
+                .setColor('Blue')
 
                 .setTitle(
-                    'Trial Moderator Evaluation'
+                    'Current Cycle Logs'
                 )
 
-                .setThumbnail(
-                    user.displayAvatarURL({
-                        dynamic: true
-                    })
-                )
-
-                .addFields(
-
-                    {
-                        name: 'User',
-
-                        value: `${user}`,
-
-                        inline: false
-                    },
-
-                    {
-                        name:
-                            'Logs This Cycle',
-
-                        value:
-                            `${count} / ${REQUIRED_LOGS}`,
-
-                        inline: true
-                    },
-
-                    {
-                        name:
-                            'Promotion Status',
-
-                        value:
-                            eligible
-                                ? '✅ Eligible'
-                                : '❌ Not Eligible',
-
-                        inline: true
-                    }
+                .setDescription(
+                    description
                 )
 
                 .setFooter({
 
                     text:
-                        `Evaluated by ${interaction.user.username}`
+                        `Total Staff Logged: ${sortedLogs.length}`
                 })
 
                 .setTimestamp();
